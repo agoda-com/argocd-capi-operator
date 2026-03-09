@@ -1,5 +1,7 @@
 # argocd-capi-operator
 
+[![codecov](https://codecov.io/gh/agoda-com/argocd-capi-operator/graph/badge.svg?token=AOPBXCCF8W)](https://codecov.io/gh/agoda-com/argocd-capi-operator)
+
 Register [Cluster](https://doc.crds.dev/github.com/kubernetes-sigs/cluster-api/cluster.x-k8s.io/Cluster/v1beta1@v1.8.3) resources using [ArgoCD Cluster API](https://pkg.go.dev/github.com/argoproj/argo-cd/v2@v2.12.3/pkg/apiclient/cluster#ClusterServiceClient).
 
 ## How it works
