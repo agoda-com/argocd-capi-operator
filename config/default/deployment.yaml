@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-capi-operator
+spec:
+  replicas: 1
+  template:
+    spec:
+      serviceAccountName: argocd-capi-operator
+      containers:
+        - name: operator
+          image: ghcr.io/agoda-com/argocd-capi-operator          
+          args:
+            - --leader-election
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512M
+            requests:
+              cpu: 500m
+              memory: 512M

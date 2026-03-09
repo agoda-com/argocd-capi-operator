@@ -1,0 +1,16 @@
+apiVersion: skaffold/v4beta12
+kind: Config
+metadata:
+  name: argocd-capi-operator
+build:
+  tagPolicy:
+    gitCommit:
+      variant: AbbrevCommitSha
+      ignoreChanges: true
+  artifacts:
+    - image: ghcr.io/agoda-com/argocd-capi-operator
+      ko: {}
+manifests:
+  kustomize:
+    paths:
+      - config/default

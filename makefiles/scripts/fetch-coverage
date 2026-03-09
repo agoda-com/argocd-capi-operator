@@ -1,0 +1,100 @@
+#!/bin/bash
+set -eEufo pipefail
+
+GOCOVERDIR="${GOCOVERDIR:-$(pwd)}"
+
+_usage=$(
+	cat <<EOF
+Usage: $0 [-c context] [-n namespace] SELECTOR
+Example:
+    $0 -c kind-fleet -n sandbox app=etcd-operator
+Options:
+    -c context - Kubernetes context to use (default "$(kubectl config current-context)").
+    -n namespace - Kubernetes namespace to use (default "default").
+Environment:
+    GOCOVERDIR: coverage files output directory (default "$(pwd)").
+EOF
+)
+
+while getopts ":hc:n:" _optchar; do
+	case "${_optchar}" in
+	h)
+		echo "${_usage}" >&2
+		exit 2
+		;;
+	c)
+		CONTEXT="${OPTARG}"
+		;;
+	n)
+		NAMESPACE="${OPTARG}"
+		;;
+	*)
+		echo "Invalid option: -${OPTARG}" >&2
+		echo "${_usage}" >&2
+		exit 1
+		;;
+	esac
+done
+shift $((OPTIND - 1))
+
+if [ ${#@} -ne 1 ]; then
+	echo "Error: Selector is required." >&2
+	echo "${_usage}" >&2
+	exit 1
+fi
+
+SELECTOR="$1"
+NAMESPACE="${NAMESPACE:-default}"
+CONTEXT="$(kubectl config current-context)"
+
+kubectl_exec() {
+	local _pod="$1"
+	shift 1
+
+	kubectl exec "${_pod}" \
+		--context "${CONTEXT}" \
+		--namespace "${NAMESPACE}" \
+		--request-timeout 10 \
+		-- "$@"
+}
+
+fetch_pod() {
+	local _pod="$1"
+
+	echo "fetching coverage (${_pod})" >&2
+
+	# kill the process to dump coverage
+	kubectl_exec "${_pod}" kill 1
+
+	# wait 5s for the coverage to be ready
+	local _deadline=$(($(date +%s) + 5))
+	while [[ -z "$(kubectl_exec "${_pod}" ls /var/coverage)" ]]; do
+		if [[ $(date +%s) -gt _deadline ]]; then
+			echo "timed out waiting for coverage" >&2
+			exit 1
+		fi
+		sleep 1
+	done
+
+	# fetch the coverage
+	kubectl_exec "${_pod}" \
+		tar -C /var/coverage -cf - . |
+		tar -x -C "${GOCOVERDIR}"
+}
+
+declare -a -r _pods=($(
+	kubectl get pods \
+		--context "${CONTEXT}" \
+		--namespace "${NAMESPACE}" \
+		--selector "${SELECTOR}" \
+		--output name
+))
+
+if [[ "${#_pods[@]}" -eq 0 ]]; then
+	echo "no pods found in namespace ${NAMESPACE}" >&2
+	exit 1
+fi
+
+for _pod in "${_pods[@]}"; do
+	fetch_pod "${_pod}"
+done

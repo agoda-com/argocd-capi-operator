@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  template:
+    spec:
+      containers:
+        - name: etcd
+          image: busybox
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - "trap : TERM INT; sleep 9999999999d & wait"
